@@ -1,5 +1,5 @@
 # ============================================================
-# 00_Config.R - Configuración base para todo el proyecto
+# 00_Config: Configuración base para todo el proyecto
 # ============================================================
 
 # Limpiar entorno
