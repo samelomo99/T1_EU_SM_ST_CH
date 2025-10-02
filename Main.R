@@ -14,7 +14,7 @@ setwd("C:/Users/USUARIO/OneDrive - Universidad de los andes/Maestría/Economía 
 path_censo_personas<- "Bogota/11Bogota/11_Bogota_CSV/CNPV2018_5PER_A2_11.CSV" 
 path_censo_marco <- "Bogota/11Bogota/11_Bogota_CSV/CNPV2018_MGN_A2_11.CSV"
 path_upz <- "UPZ/UPZ/TAprobacionNOfUPZ_2023.shp"
-path_manzanas <- "Manzanas_CPNV/Manzanas_CNPV.shp"
+path_manzanas <- "Manzanas_CNPV/Manzanas_CNPV.shp"
 
 # Igualar sistema de coordenadas para todo el código
 
@@ -286,6 +286,7 @@ manzanas <- manzanas  %>%
     
     
     
+
 
 
 
