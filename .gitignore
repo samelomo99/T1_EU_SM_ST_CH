@@ -1,4 +1,10 @@
-.Rproj.user
+# Ignorar archivos grandes del censo
+data/Bogota/11Bogota/11_Bogota_CSV/*.CSV
+data/Manzanas_CNPV/*.dbf
+
+# Archivos de RStudio
 .Rhistory
 .RData
+.Rproj.user/
 .Ruserdata
+

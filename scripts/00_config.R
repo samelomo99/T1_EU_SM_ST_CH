@@ -37,7 +37,11 @@ p_load(rio,          # Importación/exportación datos
        raster,       # Datos raster (imágenes satelitales, elevación, etc.)
        rasterVis,    # Visualizaciín avanzada para raster
        broom,        # Resultados de modelos en dataframes limpios
-       fixest        # Estimaciones con efectos fijos y robustas
+       fixest,       # Estimaciones con efectos fijos y robustas
+       janitor,      # Limpieza y manejo de datos
+       rmapshaper,   # Simplificación y edición de mapas
+       stringr,      # Manipulación consistente de cadenas
+       tmap          # Visualización temática de mapas
 )
 
 # Definir rutas 
