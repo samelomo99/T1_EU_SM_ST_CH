@@ -221,3 +221,96 @@ tm_basemap("OpenStreetMap") +
   tm_shape(poly_ci) + tm_polygons(col = "red", alpha = 0.25, border.col = "red") +
   tm_shape(pts) + tm_symbols(size = 0.1, col = "blue", alpha = 1) +
   tm_view(basemaps = c("OpenStreetMap", "Esri.WorldImagery", "CartoDB.Positron"))
+
+# -----------------------------------------------------------------
+# Extraer Parques y Plazas desde OSM
+# -----------------------------------------------------------------
+
+bbox_bogota <- st_bbox(upz)
+
+parques_osm <- opq(bbox = bbox_bogota) %>%
+  add_osm_feature(key = "leisure", value = "park") %>%
+  osmdata_sf()
+
+plazas_osm <- opq(bbox = bbox_bogota) %>%
+  add_osm_feature(key = "place", value = "square") %>%
+  osmdata_sf()
+
+# Función auxiliar para limpiar geometrías inválidas
+limpiar_geometrias <- function(sf_obj) {
+  if (is.null(sf_obj) || nrow(sf_obj) == 0) return(NULL)
+  
+  # Intentar reparar geometrías inválidas
+  sf_obj <- sf_obj %>%
+    st_make_valid() %>%
+    filter(st_is_valid(geometry)) %>%
+    filter(!st_is_empty(geometry))
+  
+  return(sf_obj)
+}
+
+# Combinar polígonos y multipolígonos, limpiando geometrías
+
+espacios_abiertos <- bind_rows(
+  limpiar_geometrias(parques_osm$osm_polygons) %>% 
+    mutate(tipo = "Parque") %>%
+    dplyr::select(osm_id, name, tipo, geometry),
+  limpiar_geometrias(parques_osm$osm_multipolygons) %>% 
+    mutate(tipo = "Parque") %>%
+    dplyr::select(osm_id, name, tipo, geometry),
+  limpiar_geometrias(plazas_osm$osm_polygons) %>% 
+    mutate(tipo = "Plaza") %>%
+    dplyr::select(osm_id, name, tipo, geometry),
+  limpiar_geometrias(plazas_osm$osm_multipolygons) %>% 
+    mutate(tipo = "Plaza") %>%
+    dplyr::select(osm_id, name, tipo, geometry)
+) %>%
+  filter(!is.null(geometry)) %>%
+  st_transform(crs_wgs)
+
+espacios_abiertos <- espacios_abiertos %>%
+  mutate(area_m2 = as.numeric(st_area(geometry)))
+
+# -----------------------------------------------------------------
+# Estadísticas Descriptivas
+# -----------------------------------------------------------------
+
+espacios_abiertos %>%
+  st_drop_geometry() %>%
+  group_by(tipo) %>%
+  summarise(
+    n = n(),
+    area_total_km2 = sum(area_m2, na.rm = TRUE) / 1e6,
+    area_media_m2 = mean(area_m2, na.rm = TRUE),
+    area_mediana_m2 = median(area_m2, na.rm = TRUE)
+  ) %>%
+  print()
+
+
+stats_propiedades <- propiedades %>%
+  st_drop_geometry() %>%
+  summarise(
+    n = n(),
+    across(
+      c(price, price_m2, surface_total, surface_covered),
+      list(
+        media = ~mean(., na.rm = TRUE),
+        desv_est = ~sd(., na.rm = TRUE),
+        min = ~min(., na.rm = TRUE),
+        p25 = ~quantile(., 0.25, na.rm = TRUE),
+        mediana = ~median(., na.rm = TRUE),
+        p75 = ~quantile(., 0.75, na.rm = TRUE),
+        max = ~max(., na.rm = TRUE)
+      ),
+      .names = "{.col}_{.fn}"
+    )
+  )
+
+print(stats_propiedades)
+
+tabla_operaciones <- propiedades %>%
+  st_drop_geometry() %>%
+  count(operation) %>%
+  mutate(porcentaje = 100 * n / sum(n))
+
+print(tabla_operaciones)
