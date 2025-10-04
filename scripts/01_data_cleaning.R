@@ -375,3 +375,80 @@ densidad_upz <- manzanas_upz %>%
 upz <- upz %>%
   left_join(densidad_upz, by = c("cod_upz", "nombre_upz")) %>%
   left_join(propiedades_upz, by = "cod_upz")
+
+# -----------------------------------------------------------------
+# MAPAS
+# -----------------------------------------------------------------
+
+# Mapa _ Proporción de propiedades en venta por UPZ
+
+mapa_prop_venta <- ggplot() +
+  geom_sf(data = upz, aes(fill = prop_venta), color = "white", size = 0.2) +
+  geom_sf(data = centro_internacional_ctr, color = "red", size = 3, shape = 17) +
+  scale_fill_viridis_c(
+    name = "Proporción\nVenta",
+    option = "C",
+    na.value = "grey80",
+    labels = scales::percent_format()
+  ) +
+  labs(
+    title = "Proporción de Propiedades en Venta por UPZ",
+    subtitle = "Centro Internacional marcado en rojo",
+    caption = "Fuente:"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(face = "bold", size = 14)
+  )
+
+print(mapa_prop_venta)
+
+# Mapa _ Densidad poblacional por UPZ
+mapa_densidad <- ggplot() +
+  geom_sf(data = upz, aes(fill = densidad_promedio), color = "white", size = 0.2) +
+  geom_sf(data = centro_internacional_ctr, color = "red", size = 3, shape = 17) +
+  scale_fill_viridis_c(
+    name = "Densidad\n(hab/km²)",
+    option = "D",
+    na.value = "grey80",
+    trans = "log10",
+    labels = scales::comma_format()
+  ) +
+  labs(
+    title = "Densidad Poblacional por UPZ",
+    subtitle = "Escala logarítmica - Centro Internacional en rojo",
+    caption = "Fuente: Censo 2018 DANE"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(face = "bold", size = 14)
+  )
+
+print(mapa_densidad)
+
+# Mapa _ Ubicación de parques y plazas
+
+mapa_espacios <- ggplot() +
+  geom_sf(data = upz, fill = "grey95", color = "grey80", size = 0.2) +
+  geom_sf(data = espacios_abiertos, aes(fill = tipo), alpha = 0.6, color = NA) +
+  geom_sf(data = centro_internacional_ctr, color = "red", size = 3, shape = 17) +
+  scale_fill_manual(
+    name = "Tipo",
+    values = c("Parque" = "forestgreen", "Plaza" = "orange")
+  ) +
+  labs(
+    title = "Distribución de Parques y Plazas en Bogotá",
+    subtitle = "Centro Internacional en rojo",
+    caption = "Fuente: OpenStreetMap"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(face = "bold", size = 14)
+  )
+
+print(mapa_espacios)
+
+# Mapa _ Tamaño de espacios abiertos
