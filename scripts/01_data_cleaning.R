@@ -314,3 +314,64 @@ tabla_operaciones <- propiedades %>%
   mutate(porcentaje = 100 * n / sum(n))
 
 print(tabla_operaciones)
+
+# -----------------------------------------------------------------
+# Densidad Poblacional
+# -----------------------------------------------------------------
+
+# Calcular área y densidad por manzana
+
+manzanas <- manzanas %>%
+  mutate(
+    area_km2 = as.numeric(st_area(geometry)) / 1e6,
+    densidad_hab_km2 = pop_mzna / area_km2
+  )
+
+# Estadísticas de densidad
+
+stats_densidad <- manzanas %>%
+  st_drop_geometry() %>%
+  summarise(
+    media_pop = mean(pop_mzna, na.rm = TRUE),
+    media_dens = mean(densidad_hab_km2, na.rm = TRUE),
+    sd_dens = sd(densidad_hab_km2, na.rm = TRUE),
+    min_dens = min(densidad_hab_km2, na.rm = TRUE),
+    mediana_dens = median(densidad_hab_km2, na.rm = TRUE),
+    max_dens = max(densidad_hab_km2, na.rm = TRUE)
+  )
+
+print(stats_densidad)
+
+# Validar duplicados
+
+upz <- upz %>%
+  group_by(cod_upz, nombre_upz) %>%
+  summarise(
+    geometry = st_union(geometry),
+    .groups = "drop"
+  ) %>%
+  st_cast("MULTIPOLYGON")
+
+# Agregar densidad a nivel UPZ
+
+manzanas_upz <- st_join(
+  manzanas %>% st_transform(crs_wgs),
+  upz %>% dplyr::select(cod_upz, nombre_upz),
+  join = st_within
+)
+
+densidad_upz <- manzanas_upz %>%
+  st_drop_geometry() %>%
+  group_by(cod_upz, nombre_upz) %>%
+  summarise(
+    poblacion_total = sum(pop_mzna, na.rm = TRUE),
+    area_total_km2 = sum(area_km2, na.rm = TRUE),
+    densidad_promedio = poblacion_total / area_total_km2,
+    .groups = "drop"
+  )
+
+# Unir con UPZ
+
+upz <- upz %>%
+  left_join(densidad_upz, by = c("cod_upz", "nombre_upz")) %>%
+  left_join(propiedades_upz, by = "cod_upz")
