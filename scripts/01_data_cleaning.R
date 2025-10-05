@@ -38,6 +38,8 @@ head(propiedades)
 
 bbox_bog <- c(xmin = -74.35, ymin = 4.45, xmax = -73.95, ymax = 4.85)
 
+bbox_bog <- c(xmin = -74.35, ymin = 4.45, xmax = -73.95, ymax = 4.85)
+
 propiedades <- propiedades %>%
   filter(!is.na(price), !is.na(surface_total), !is.na(surface_covered)) %>% # eliminar NAs
   filter(price > 0, surface_total > 0) %>% # eliminar valores inválidos
@@ -45,8 +47,10 @@ propiedades <- propiedades %>%
     lat  = as.numeric(lat),
     lon  = as.numeric(lon),
     price = as.numeric(price),
-    price_m2 = price / surface_total
-  )  %>%
+    surface_total  = as.numeric(surface_total),
+    surface_covered= as.numeric(surface_covered),
+    price_m2_venta = if_else(operation == "Venta",    price / surface_total, NA_real_),
+    rent_m2_mo     = if_else(operation == "Alquiler", price / surface_total, NA_real_))  %>%
   # Detecta pares invertidos de longitudes y latitudes y los corrige
   mutate(
     swapped = dplyr::between(lon, 3, 6) & dplyr::between(lat, -75, -73),
