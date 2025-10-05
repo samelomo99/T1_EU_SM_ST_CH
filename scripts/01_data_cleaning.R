@@ -452,3 +452,38 @@ mapa_espacios <- ggplot() +
 print(mapa_espacios)
 
 # Mapa _ Tamaño de espacios abiertos
+
+mapa_tamanos <- ggplot() +
+  geom_sf(data = upz, fill = "grey95", color = "grey80", size = 0.2) +
+  geom_sf(data = espacios_abiertos, aes(fill = area_m2), alpha = 0.7, color = NA) +
+  scale_fill_viridis_c(
+    name = "Área (m²)",
+    option = "G",
+    trans = "log10",
+    labels = scales::comma_format()
+  ) +
+  labs(
+    title = "Tamaño de Parques y Plazas en Bogotá",
+    subtitle = "Escala logarítmica",
+    caption = "Fuente: OpenStreetMap"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(face = "bold", size = 14)
+  )
+
+print(mapa_tamanos)
+
+save(
+  propiedades,
+  espacios_abiertos,
+  manzanas,
+  upz,
+  centro_internacional_ctr,
+  stats_propiedades,
+  stats_densidad,
+  tabla_operaciones,
+  file = here::here("stores", "datos_completos.RData")
+)
+
