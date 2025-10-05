@@ -42,6 +42,9 @@ p_load(rio,          # Importación/exportación datos
        rmapshaper,   # Simplificación y edición de mapas
        stringr,      # Manipulación consistente de cadenas
        tmap          # Visualización temática de mapas
+       fixest
+       mgcv
+       scales
 )
 
 # Definir rutas 
