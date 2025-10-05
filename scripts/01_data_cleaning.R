@@ -7,7 +7,10 @@
 # - Generar dataset listo para análisis y modelación
 # =============================================================================
 
+rm(list = ls()) #limpiamos el entorno
+
 # Cargar la configuración base
+here::i_am("scripts/01_data_cleaning.R")
 source(here::here("scripts", "00_Config.R"))
 
 # Definir paths de los insumos de datos
@@ -33,18 +36,36 @@ head(propiedades)
 
 # Limpiar datos de propiedades
 
+bbox_bog <- c(xmin = -74.35, ymin = 4.45, xmax = -73.95, ymax = 4.85)
+
 propiedades <- propiedades %>%
   filter(!is.na(price), !is.na(surface_total), !is.na(surface_covered)) %>% # eliminar NAs
   filter(price > 0, surface_total > 0) %>% # eliminar valores inválidos
   mutate(
     lat  = as.numeric(lat),
     lon  = as.numeric(lon),
+    price = as.numeric(price),
     price_m2 = price / surface_total
+  )  %>%
+  # Detecta pares invertidos de longitudes y latitudes y los corrige
+  mutate(
+    swapped = dplyr::between(lon, 3, 6) & dplyr::between(lat, -75, -73),
+    lat  = if_else(swapped, lon, lat),
+    lon  = if_else(swapped, lat, lon)
+  ) %>%
+  mutate(
+    in_bbox = dplyr::between(lon, bbox_bog["xmin"], bbox_bog["xmax"]) &
+      dplyr::between(lat, bbox_bog["ymin"], bbox_bog["ymax"])
   )
 
 # Convertir a objeto espacial
 
 propiedades <- st_as_sf(propiedades, coords = c("lon", "lat"), crs = crs_wgs)
+
+# Verificar errores de localización
+
+message(sprintf("Total crudo: %d | Dentro bbox: %d | Fuera bbox: %d",
+                nrow(propiedades), nrow(filter(propiedades, in_bbox)), nrow(filter(propiedades, !in_bbox))))
 
 # -----------------------------------------------------------------------
 # Shapefile de UPZ (Actualizados a Junio 6, 2025) y unión de propiedades
@@ -151,6 +172,7 @@ manzanas <- manzanas  %>%
 # Verificamos que los valores que venían en el archivo de ArcGIS y los que calculamos desde personas coinciden
 
 manzanas_filtr <- manzanas %>% dplyr::select(mpio, uasect_urb, ua_manzana, id_unifica, sexo_total, mancodigo, pop_mzna, geometry)
+head(manzanas_filtr)
 
 # -----------------------------------------------------------------
 # Crear polígono del Centro Internacional de Bogotá
@@ -214,7 +236,7 @@ cent_ci <- st_centroid(poly_ci)
 centro_internacional     <- st_sf(name = "Centro Internacional", geometry = poly_ci)
 centro_internacional_ctr <- st_sf(name = "Centroide CI", geometry = cent_ci)
 
-# Mapa interactivo de validación
+# Mapa de validación
 
 tmap_mode("view")
 tm_basemap("OpenStreetMap") +
@@ -452,3 +474,40 @@ mapa_espacios <- ggplot() +
 print(mapa_espacios)
 
 # Mapa _ Tamaño de espacios abiertos
+
+
+
+# -----------------------------------------------------------------
+# Guardar bases 
+# -----------------------------------------------------------------
+
+dir.create(here::here("data", "processed"), recursive = TRUE, showWarnings = FALSE)
+
+fp_gpkg        <- here::here("data", "processed", "bogota_processed.gpkg")
+fp_prop_upz_rds<- here::here("data", "processed", "propiedades_upz.rds")
+fp_prop_upz_csv<- here::here("data", "processed", "propiedades_upz.csv")
+fp_dens_upz_rds<- here::here("data", "processed", "densidad_upz.rds")
+fp_dens_upz_csv<- here::here("data", "processed", "densidad_upz.csv")
+fp_pop_mzna_rds<- here::here("data", "processed", "pop_mzna.rds")
+fp_pop_mzna_csv<- here::here("data", "processed", "pop_mzna.csv")
+
+# UPZ
+  st_write(upz, fp_gpkg, layer = "upz", delete_dsn = TRUE, quiet = TRUE)
+
+# Manzanas
+  st_write(manzanas, fp_gpkg, layer = "manzanas", append = TRUE, quiet = TRUE)
+
+# propiedades (o propiedades_limpias si la tienes)
+  st_write(propiedades, fp_gpkg, layer = "propiedades", append = TRUE, quiet = TRUE)
+
+# espacios abiertos
+  st_write(espacios_abiertos, fp_gpkg, layer = "espacios_abiertos", append = TRUE, quiet = TRUE)
+
+# polígono y centroide del CI
+  st_write(centro_internacional, fp_gpkg, layer = "ci_poly", append = TRUE, quiet = TRUE)
+  st_write(centro_internacional_ctr, fp_gpkg, layer = "ci_centroid", append = TRUE, quiet = TRUE)
+
+# Tablas a CSV
+  write_rds(propiedades_upz, fp_prop_upz_rds); write_csv(propiedades_upz, fp_prop_upz_csv)
+  write_rds(densidad_upz, fp_dens_upz_rds); write_csv(densidad_upz, fp_dens_upz_csv)
+  write_rds(pop_mzna, fp_pop_mzna_rds); write_csv(pop_mzna, fp_pop_mzna_csv)
