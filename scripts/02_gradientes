@@ -1,6 +1,11 @@
 # ============================================================
 # Script_02: Gradientes espaciales (precio m² y densidad)
 # ============================================================
+# Objetivos:
+# - Calcular distancia de propiedades al Centro Internacional
+# - Estimar gradientes de precio y densidad vs distancia
+# - Graficar los gradientes espaciales
+# =============================================================
 
 # Config y paquetes
 here::i_am("scripts/02_gradientes.R")
