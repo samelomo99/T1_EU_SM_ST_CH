@@ -44,6 +44,7 @@ p_load(rio,          # Importación/exportación datos
        tmap          # Visualización temática de mapas
        fixest
        mgcv
+       scales
 )
 
 # Definir rutas 
