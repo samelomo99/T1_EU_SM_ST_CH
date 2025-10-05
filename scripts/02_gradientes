@@ -22,6 +22,9 @@ centro_internacional_ctr <- st_read(fp_gpkg, layer = "ci_centroid",   quiet = TR
 
 # --- Generar variables para la estimación ---
 
+centro_internacional_ctr <- st_transform(centro_internacional_ctr, 3116)
+propiedades    <- st_transform(propiedades, 3116)
+
 props <- propiedades %>%
   mutate(
     dist_ci_km = as.numeric(st_distance(., centro_internacional_ctr))/ 1000,
@@ -34,6 +37,9 @@ props <- propiedades %>%
   st_transform(crs_bog) %>%
   filter(!is.na(cod_upz)) %>%
   mutate(cod_upz = factor(cod_upz))
+
+# Verificar rango de distancias
+summary(props$dist_ci_km)
 
 # Data frames separados
 sale  <- props %>% filter(operation == "Venta")
@@ -122,61 +128,32 @@ etable(m_sale_fe, m_rent_fe)
 
 # Gráficos de gradientes
 
-pred_curve <- function(modelo, df, by = 0.25) {
-  dmax <- ceiling(max(df$dist_ci_km, na.rm = TRUE))
-  newd <- data.frame(
-    dist_ci_km = seq(0, dmax, by = by),
-    ln_st = median(df$ln_st, na.rm = TRUE),
-    ln_sc = median(df$ln_sc, na.rm = TRUE),
-    bedrooms = round(median(df$bedrooms, na.rm = TRUE)),
-    bathrooms = round(median(df$bathrooms, na.rm = TRUE)),
-    rooms = round(median(df$rooms, na.rm = TRUE)),
-    cod_upz = levels(df$cod_upz)[1]
-  )
-  pr <- predict(modelo, newd, se.fit = TRUE)
-  newd$fit  <- pr$fit
-  newd$se   <- pr$se.fit
-  newd$yhat <- exp(newd$fit)
-  newd$lwr  <- exp(newd$fit - 1.96*newd$se)
-  newd$upr  <- exp(newd$fit + 1.96*newd$se)
-  newd
-}
+p_venta   <- ggpredict(m_sale, terms = "dist_ci_km", ci.lvl = 0.95)  # predicciones + IC
+p_alquiler<- ggpredict(m_rent, terms = "dist_ci_km", ci.lvl = 0.95)
 
-curve_sale <- pred_curve(m_sale, sale) %>% mutate(market = "Venta")
-curve_rent <- pred_curve(m_rent, rent) %>% mutate(market = "Alquiler")
-curves <- bind_rows(curve_sale, curve_rent)
-curves_fac <- curves %>%
-  mutate(market = factor(market,
-                         levels = c("Venta","Alquiler"),
-                         labels = c("Venta","Alquiler")))
+plot(p_venta)    + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Venta: gradiente con IC")
+plot(p_alquiler) + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Alquiler: gradiente con IC")
 
-ggplot(curves_fac, aes(dist_ci_km, yhat)) +
-  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = .15, fill = "grey70", color = NA) +
-  geom_line(size = 1) +
-  facet_wrap(~ market, ncol = 2, scales = "free_y") +
-  labs(
-    x = "Distancia al CI (km)",
-    y = "Precio predicho (COP)",
-    title = "Gradiente estimado vs distancia (paneles por mercado)"
-  ) +
-  theme_minimal() +
-  theme(strip.text = element_text(face = "bold"))
+p_venta   <- ggpredict(m_sale_fe, terms = "dist_ci_km", ci.lvl = 0.95)  # predicciones + IC
+p_alquiler<- ggpredict(m_rent_fe, terms = "dist_ci_km", ci.lvl = 0.95)
 
+plot(p_venta)    + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Venta: gradiente con IC")
+plot(p_alquiler) + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Alquiler: gradiente con IC")
 
 # -----------------------------------------------------------------
 # Gradiente Densidad poblacional distancia
 # -----------------------------------------------------------------
 
 
-mzn <- st_transform(manzanas, crs_wgs) %>%
+mzn <- st_transform(manzanas, crs_bog) %>%
   mutate(
     dist_ci_km = as.numeric(st_distance(., centro_internacional_ctr)) / 1000
   )
 
 # pega UPZ (join espacial) para FE/RE
 mzn_w_upz <- mzn %>%
-  st_transform(crs_wgs) %>%
-  st_join(st_transform(upz, crs_wgs) %>% dplyr::select(cod_upz),
+  st_transform(crs_bog) %>%
+  st_join(st_transform(upz, crs_bog) %>% dplyr::select(cod_upz),
           join = st_within, left = TRUE) %>%
   filter(!is.na(cod_upz)) %>%
   mutate(
@@ -184,6 +161,9 @@ mzn_w_upz <- mzn %>%
     # log-densidad (evita log(0))
     ln_dens = log(pmax(1, densidad_hab_km2))
   )
+
+# Verificar valores de distancia 
+summary(mzn_w_upz$dist_ci_km)
 
 df_den <- st_drop_geometry(mzn_w_upz) %>%
   filter(is.finite(dist_ci_km), is.finite(ln_dens))
@@ -202,55 +182,24 @@ summary(m_den_lin)
 summary(m_den_gam)
 gam.check(m_den_gam)  # chequeo de k
 
-
-
-
-# Curva predicha con IC 95%
-pred_curve_den <- function(modelo, df, by = 0.25) {
-  dmax <- ceiling(max(df$dist_ci_km, na.rm = TRUE))
-  newd <- data.frame(
-    dist_ci_km = seq(0, dmax, by = by),
-    area_km2 = median(df$area_km2, na.rm = TRUE),
-    cod_upz = levels(df$cod_upz)[1]   # efecto aleatorio en nivel de referencia
-  )
-  pr <- predict(modelo, newdata = newd, se.fit = TRUE)
-  newd$fit  <- pr$fit
-  newd$se   <- pr$se.fit
-  newd$yhat <- exp(newd$fit)                      # volver a hab/km²
-  newd$lwr  <- exp(newd$fit - 1.96 * newd$se)
-  newd$upr  <- exp(newd$fit + 1.96 * newd$se)
-  newd
-}
-
-curve_den_lin <- pred_curve_den(m_den_lin, df_den) %>% mutate(modelo = "Lineal")
-curve_den_gam <- pred_curve_den(m_den_gam, df_den) %>% mutate(modelo = "GAM (suavizado)")
-
-curves_den <- bind_rows(curve_den_lin, curve_den_gam)
-
-# Gráfico del gradiente de densidad
-ggplot(curves_den, aes(dist_ci_km, yhat, color = modelo, fill = modelo)) +
-  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = .15, color = NA) +
-  geom_line(size = 1) +
-  scale_y_continuous(labels = scales::comma_format()) +
-  labs(
-    x = "Distancia al CI (km)",
-    y = "Densidad poblacional predicha (hab/km²)",
-    title = "Gradiente estimado de densidad poblacional vs distancia",
-    color = "Modelo", fill = "Modelo",
-    caption = "Modelos: ln(densidad) ~ dist | ln(densidad) ~ s(dist); ambos con RE(UPZ)"
-  ) +
-  theme_minimal() +
-  theme(legend.position = "top")
-
-# Alternativa OLS con FE por UPZ
+# OLS con FE por UPZ
 m_den_fe <- feols(
   ln_dens ~ dist_ci_km + area_km2 | cod_upz,
   data = df_den,
   cluster = ~ cod_upz
 )
 
-
 etable(m_den_fe)
 
 
+# Curva predicha con IC 95%
+
+grad_den_lin   <- ggpredict(m_den_lin, terms = "dist_ci_km", ci.lvl = 0.95)  # predicciones + IC
+grad_den_gam   <- ggpredict(m_den_gam, terms = "dist_ci_km", ci.lvl = 0.95)
+grad_den_fe    <- ggpredict(m_den_fe, terms = "dist_ci_km", ci.lvl = 0.95)
+
+
+plot(grad_den_lin)    + labs(x="Distancia al CI (km)", y="Densidad poblacional predicha (hab/km²)", title="Densidad: gradiente con IC")
+plot(grad_den_gam) + labs(x="Distancia al CI (km)", y="Densidad poblacional predicha (hab/km²)", title="Densidad: gradiente con IC")
+plot(grad_den_fe) + labs(x="Distancia al CI (km)", y="Densidad poblacional predicha (hab/km²)", title="Densidad: gradiente con IC")
 
