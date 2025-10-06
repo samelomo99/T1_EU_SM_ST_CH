@@ -479,7 +479,6 @@ print(mapa_espacios)
 
 # Mapa _ Tamaño de espacios abiertos
 
-<<<<<<< HEAD
 mapa_tamanos <- ggplot() +
   geom_sf(data = upz, fill = "grey95", color = "grey80", size = 0.2) +
   geom_sf(data = espacios_abiertos, aes(fill = area_m2), alpha = 0.7, color = NA) +
@@ -513,8 +512,6 @@ save(
   tabla_operaciones,
   file = here::here("stores", "datos_completos.RData")
 )
-
-=======
 
 
 # -----------------------------------------------------------------
@@ -551,4 +548,4 @@ fp_pop_mzna_csv<- here::here("data", "processed", "pop_mzna.csv")
   write_rds(propiedades_upz, fp_prop_upz_rds); write_csv(propiedades_upz, fp_prop_upz_csv)
   write_rds(densidad_upz, fp_dens_upz_rds); write_csv(densidad_upz, fp_dens_upz_csv)
   write_rds(pop_mzna, fp_pop_mzna_rds); write_csv(pop_mzna, fp_pop_mzna_csv)
->>>>>>> 34b1a02a71f27a54c6d2d825d9a27184e86748d8
+  

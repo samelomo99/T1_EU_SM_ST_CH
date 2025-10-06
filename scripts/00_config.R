@@ -41,10 +41,10 @@ p_load(rio,          # Importación/exportación datos
        janitor,      # Limpieza y manejo de datos
        rmapshaper,   # Simplificación y edición de mapas
        stringr,      # Manipulación consistente de cadenas
-       tmap          # Visualización temática de mapas
-       fixest
-       mgcv
-       scales
+       tmap,         # Visualización temática de mapas
+       fixest,
+       mgcv,
+       scales,
        ggeffects
 )
 
