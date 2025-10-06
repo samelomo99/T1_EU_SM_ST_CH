@@ -8,7 +8,7 @@
 # =============================================================
 
 # Config y paquetes
-here::i_am("scripts/02_gradientes.R")
+here::i_am("scripts/02_gradients.R")
 source(here::here("scripts", "00_Config.R"))
 
 # Paths a procesados
@@ -46,6 +46,11 @@ props <- propiedades %>%
 # Verificar rango de distancias
 summary(props$dist_ci_km)
 
+# Verificamos variación en los controles 
+sum(props$rooms != props$bedrooms, na.rm = TRUE)
+sum(props$surface_total != props$surface_covered, na.rm= TRUE)
+  # Como vemos que no hay prácticamente diferencias a lo largo del data frame entre las variables "rooms" y "bedrooms" elegimos una sola para las regresiones para evitar colinealidad. 
+
 # Data frames separados
 sale  <- props %>% filter(operation == "Venta")
 rent  <- props %>% filter(operation == "Alquiler")
@@ -59,27 +64,27 @@ rent  <- props %>% filter(operation == "Alquiler")
 
 # --- VENTAS ---
 
-m_sale <- gam(
+m_sale_lin <- gam(
   log(price_m2) ~
     dist_ci_km +                     # gradiente vs distancia
     ln_st + ln_sc +                  # tamaños
-    bedrooms + bathrooms + rooms +   # controles
+    bathrooms + rooms +   # controles
     s(cod_upz, bs = "re"),           # efecto aleatorio UPZ
   data = sale, method = "REML"
 )
 
 # --- ALQUILER ---
-m_rent <- gam(
+m_rent_lin <- gam(
   log(price_m2) ~
     dist_ci_km+
     ln_st+ ln_sc +
-    bedrooms + bathrooms + rooms +   
+    bathrooms + rooms +   
     s(cod_upz, bs = "re"),
   data = rent, method = "REML"
 )
 
-summary(m_sale)
-summary(m_rent)
+summary(m_sale_lin)
+summary(m_rent_lin)
 
 
   ### Luego damos espacio para no linealidades en la relación entre precio y distancia
@@ -88,9 +93,9 @@ summary(m_rent)
 
 m_sale <- gam(
   log(price_m2) ~
-    s(dist_ci_km, k = 5) +           # gradiente (curva) vs distancia
+    s(dist_ci_km, bs="ad", k=30) +           # gradiente (curva) vs distancia
     ln_st + ln_sc +                  # tamaños
-    bedrooms + bathrooms + rooms +   # lineales
+    bathrooms + rooms +   # lineales
     s(cod_upz, bs = "re"),           # efecto aleatorio UPZ
   data = sale, method = "REML"
 )
@@ -98,9 +103,9 @@ m_sale <- gam(
 # --- ALQUILER ---
 m_rent <- gam(
   log(price_m2) ~
-    s(dist_ci_km, k = 5) +
+    s(dist_ci_km, bs="ad", k=30) +
     ln_st + ln_sc +                  # tamaños
-    bedrooms + bathrooms + rooms +   # lineales
+    bathrooms + rooms +   # lineales
     s(cod_upz, bs = "re"),
   data = rent, method = "REML"
 )
@@ -117,14 +122,14 @@ gam.check(m_rent)
 # VENTA
 m_sale_fe <- feols(
   log(price_m2) ~ dist_ci_km + log(surface_total) + log(pmax(1, surface_covered)) +
-    bedrooms + bathrooms + rooms | cod_upz,
+    bathrooms + rooms | cod_upz,
   data = sale,
 )
 
 # ALQUILER
 m_rent_fe <- feols(
   log(price_m2) ~ dist_ci_km + log(surface_total) + log(pmax(1, surface_covered)) +
-    bedrooms + bathrooms + rooms | cod_upz,
+    bathrooms + rooms | cod_upz,
   data = rent,
 )
 
@@ -133,14 +138,16 @@ etable(m_sale_fe, m_rent_fe)
 
 # Gráficos de gradientes
 
+  ### No incluimos un gráfico para la estimación por efectos fijos pues es muy similar a la lineal. 
+
 p_venta   <- ggpredict(m_sale, terms = "dist_ci_km", ci.lvl = 0.95)  # predicciones + IC
 p_alquiler<- ggpredict(m_rent, terms = "dist_ci_km", ci.lvl = 0.95)
 
 plot(p_venta)    + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Venta: gradiente con IC")
 plot(p_alquiler) + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Alquiler: gradiente con IC")
 
-p_venta   <- ggpredict(m_sale_fe, terms = "dist_ci_km", ci.lvl = 0.95)  # predicciones + IC
-p_alquiler<- ggpredict(m_rent_fe, terms = "dist_ci_km", ci.lvl = 0.95)
+p_venta   <- ggpredict(m_sale_lin, terms = "dist_ci_km", ci.lvl = 0.95)  # predicciones + IC
+p_alquiler<- ggpredict(m_rent_lin, terms = "dist_ci_km", ci.lvl = 0.95)
 
 plot(p_venta)    + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Venta: gradiente con IC")
 plot(p_alquiler) + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Alquiler: gradiente con IC")
@@ -199,12 +206,37 @@ etable(m_den_fe)
 
 # Curva predicha con IC 95%
 
+  # No incluimos gráficos de Efectos Fijos por falta de significancia estadística
+
 grad_den_lin   <- ggpredict(m_den_lin, terms = "dist_ci_km", ci.lvl = 0.95)  # predicciones + IC
 grad_den_gam   <- ggpredict(m_den_gam, terms = "dist_ci_km", ci.lvl = 0.95)
-grad_den_fe    <- ggpredict(m_den_fe, terms = "dist_ci_km", ci.lvl = 0.95)
-
 
 plot(grad_den_lin)    + labs(x="Distancia al CI (km)", y="Densidad poblacional predicha (hab/km²)", title="Densidad: gradiente con IC")
 plot(grad_den_gam) + labs(x="Distancia al CI (km)", y="Densidad poblacional predicha (hab/km²)", title="Densidad: gradiente con IC")
-plot(grad_den_fe) + labs(x="Distancia al CI (km)", y="Densidad poblacional predicha (hab/km²)", title="Densidad: gradiente con IC")
 
+# -----------------------------------------------------------------
+# Exportar nuevas bases
+# -----------------------------------------------------------------
+
+props <- props %>%
+  st_transform(crs_bog)
+
+props <- props %>%
+  mutate(.,
+  id_prop = dplyr::row_number()) %>%
+  filter(!is.na(operation)) %>%
+  dplyr::select(
+    id_prop, operation, price_m2,
+    dist_ci_km, ln_st, ln_sc,
+    bedrooms, bathrooms, rooms,
+    cod_upz, geom
+  )
+
+mzn_w_upz <- mzn_w_upz %>%
+  st_transform(crs_bog)
+
+# Actualizar capas en el GPKG
+# - props_grad: propiedades con dist_ci_km, price_m2, controles y FE listos (EPSG:3116)
+# - mzn_grad: manzanas con dist_ci_km, area_km2, densidad y ln_dens (EPSG:3116)
+st_write(props,     fp_gpkg, layer = "props_grad", delete_layer = TRUE, quiet = TRUE)
+st_write(mzn_w_upz,fp_gpkg, layer = "mzn_grad",  delete_layer = TRUE, quiet = TRUE)
