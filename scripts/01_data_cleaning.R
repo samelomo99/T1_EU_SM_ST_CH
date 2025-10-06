@@ -318,7 +318,7 @@ stats_propiedades <- propiedades %>%
   summarise(
     n = n(),
     across(
-      c(price, price_m2, surface_total, surface_covered),
+      c(price, price_m2_venta, rent_m2_mo, surface_total, surface_covered),
       list(
         media = ~mean(., na.rm = TRUE),
         desv_est = ~sd(., na.rm = TRUE),
