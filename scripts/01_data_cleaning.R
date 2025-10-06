@@ -501,18 +501,6 @@ mapa_tamanos <- ggplot() +
 
 print(mapa_tamanos)
 
-save(
-  propiedades,
-  espacios_abiertos,
-  manzanas,
-  upz,
-  centro_internacional_ctr,
-  stats_propiedades,
-  stats_densidad,
-  tabla_operaciones,
-  file = here::here("stores", "datos_completos.RData")
-)
-
 
 # -----------------------------------------------------------------
 # Guardar bases 
