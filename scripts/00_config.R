@@ -45,7 +45,7 @@ p_load(rio,          # Importación/exportación datos
        fixest,
        mgcv,
        scales,
-       ggeffects
+       ggeffects,
        conleyreg
 )
 
