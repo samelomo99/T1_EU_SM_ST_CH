@@ -1,95 +1,210 @@
 # ============================================================
-# Script_02: Gradientes Espaciales
+# Script_02: Gradientes espaciales (precio m² y densidad)
 # ============================================================
 # Objetivos:
 # - Calcular distancia de propiedades al Centro Internacional
 # - Estimar gradientes de precio y densidad vs distancia
 # - Graficar los gradientes espaciales
-# =============================================================================
+# =============================================================
 
-# Cargar la configuración base
+# Config y paquetes
+here::i_am("scripts/02_gradientes.R")
 source(here::here("scripts", "00_Config.R"))
 
-# Cargar los datos procesados del Script_01
-load(here::here("stores", "datos_completos.RData"))
+# Paths a procesados
+fp_gpkg       <- here::here("data", "processed", "bogota_processed.gpkg")
 
-# -----------------------------------------------------------------
-# 1. Calcular distancia al Centro Internacional
-# -----------------------------------------------------------------
+# Definir CRS de trabajo
 
-# Transformar propiedades y centro al mismo CRS proyectado (para distancias en metros)
+crs_wgs <- 4326
+crs_bog <- 3116 ## MAGNA SIRGAS de Bogotá
 
-propiedades_bog <- propiedades %>% st_transform(crs_bog)
-centro_bog <- centro_internacional_ctr %>% st_transform(crs_bog)
+# Cargar capas necesarias
+upz                      <- st_read(fp_gpkg, layer = "upz",           quiet = TRUE)
+manzanas                 <- st_read(fp_gpkg, layer = "manzanas",      quiet = TRUE)
+propiedades              <- st_read(fp_gpkg, layer = "propiedades",   quiet = TRUE)
+centro_internacional_ctr <- st_read(fp_gpkg, layer = "ci_centroid",   quiet = TRUE)
 
-# Calcular distancia de cada propiedad al centro (en metros)
+# --- Generar variables para la estimación ---
 
-propiedades_bog <- propiedades_bog %>%
+centro_internacional_ctr <- st_transform(centro_internacional_ctr, 3116)
+propiedades    <- st_transform(propiedades, 3116)
+
+props <- propiedades %>%
   mutate(
-    dist_centro_m = as.numeric(st_distance(geometry, centro_bog)),
-    dist_centro_km = dist_centro_m / 1000  # Convertir a kilómetros
-  )
+    dist_ci_km = as.numeric(st_distance(., centro_internacional_ctr))/ 1000,
+    ln_st = log(surface_total),
+    ln_sc = log(pmax(1, surface_covered))
+  ) %>%
+  # pega UPZ 
+  st_transform(4326) %>%
+  st_join(st_transform(upz, 4326) %>% dplyr::select(cod_upz), join = st_within, left = TRUE) %>%
+  st_transform(crs_bog) %>%
+  filter(!is.na(cod_upz)) %>%
+  mutate(cod_upz = factor(cod_upz))
 
 # Verificar rango de distancias
+summary(props$dist_ci_km)
 
-summary(propiedades_bog$dist_centro_km)
+# Data frames separados
+sale  <- props %>% filter(operation == "Venta")
+rent  <- props %>% filter(operation == "Alquiler")
 
-# Separar por tipo de operación
-
-propiedades_venta <- propiedades_bog %>%
-  filter(str_to_lower(operation) == "venta")
-
-propiedades_arriendo <- propiedades_bog %>%
-  filter(str_to_lower(operation) == "alquiler" | str_to_lower(operation) == "arriendo")
 
 # -----------------------------------------------------------------
-# 2. Densidad poblacional por UPZ con distancia al centro
+# Gradiente Precio distancia
 # -----------------------------------------------------------------
 
-# Calcular centroide de cada UPZ y su distancia al centro
+  ### Primero estimamos asumiendo la forma de la relación entre la distancia y el precio (lineal)
 
-upz_bog <- upz %>% 
-  st_transform(crs_bog) %>%
+# --- VENTAS ---
+
+m_sale <- gam(
+  log(price_m2) ~
+    dist_ci_km +                     # gradiente vs distancia
+    ln_st + ln_sc +                  # tamaños
+    bedrooms + bathrooms + rooms +   # controles
+    s(cod_upz, bs = "re"),           # efecto aleatorio UPZ
+  data = sale, method = "REML"
+)
+
+# --- ALQUILER ---
+m_rent <- gam(
+  log(price_m2) ~
+    dist_ci_km+
+    ln_st+ ln_sc +
+    bedrooms + bathrooms + rooms +   
+    s(cod_upz, bs = "re"),
+  data = rent, method = "REML"
+)
+
+summary(m_sale)
+summary(m_rent)
+
+
+  ### Luego damos espacio para no linealidades en la relación entre precio y distancia
+
+# --- VENTAS ---
+
+m_sale <- gam(
+  log(price_m2) ~
+    s(dist_ci_km, k = 5) +           # gradiente (curva) vs distancia
+    ln_st + ln_sc +                  # tamaños
+    bedrooms + bathrooms + rooms +   # lineales
+    s(cod_upz, bs = "re"),           # efecto aleatorio UPZ
+  data = sale, method = "REML"
+)
+
+# --- ALQUILER ---
+m_rent <- gam(
+  log(price_m2) ~
+    s(dist_ci_km, k = 5) +
+    ln_st + ln_sc +                  # tamaños
+    bedrooms + bathrooms + rooms +   # lineales
+    s(cod_upz, bs = "re"),
+  data = rent, method = "REML"
+)
+
+
+summary(m_sale)
+summary(m_rent)
+
+gam.check(m_sale)  # chequeo de k
+gam.check(m_rent)
+
+  ### Ahora estimamos por medio de efectos fijos por UPZ
+
+# VENTA
+m_sale_fe <- feols(
+  log(price_m2) ~ dist_ci_km + log(surface_total) + log(pmax(1, surface_covered)) +
+    bedrooms + bathrooms + rooms | cod_upz,
+  data = sale,
+)
+
+# ALQUILER
+m_rent_fe <- feols(
+  log(price_m2) ~ dist_ci_km + log(surface_total) + log(pmax(1, surface_covered)) +
+    bedrooms + bathrooms + rooms | cod_upz,
+  data = rent,
+)
+
+etable(m_sale_fe, m_rent_fe)
+
+
+# Gráficos de gradientes
+
+p_venta   <- ggpredict(m_sale, terms = "dist_ci_km", ci.lvl = 0.95)  # predicciones + IC
+p_alquiler<- ggpredict(m_rent, terms = "dist_ci_km", ci.lvl = 0.95)
+
+plot(p_venta)    + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Venta: gradiente con IC")
+plot(p_alquiler) + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Alquiler: gradiente con IC")
+
+p_venta   <- ggpredict(m_sale_fe, terms = "dist_ci_km", ci.lvl = 0.95)  # predicciones + IC
+p_alquiler<- ggpredict(m_rent_fe, terms = "dist_ci_km", ci.lvl = 0.95)
+
+plot(p_venta)    + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Venta: gradiente con IC")
+plot(p_alquiler) + labs(x="Distancia al CI (km)", y="Precio predicho (log-COP)", title="Alquiler: gradiente con IC")
+
+# -----------------------------------------------------------------
+# Gradiente Densidad poblacional distancia
+# -----------------------------------------------------------------
+
+
+mzn <- st_transform(manzanas, crs_bog) %>%
   mutate(
-    centroide = st_centroid(geometry),
-    dist_centro_km = as.numeric(st_distance(centroide, centro_bog)) / 1000
+    dist_ci_km = as.numeric(st_distance(., centro_internacional_ctr)) / 1000
   )
 
-# Crear dataframe para análisis
+# pega UPZ (join espacial) para FE/RE
+mzn_w_upz <- mzn %>%
+  st_transform(crs_bog) %>%
+  st_join(st_transform(upz, crs_bog) %>% dplyr::select(cod_upz),
+          join = st_within, left = TRUE) %>%
+  filter(!is.na(cod_upz)) %>%
+  mutate(
+    cod_upz = factor(cod_upz),
+    # log-densidad (evita log(0))
+    ln_dens = log(pmax(1, densidad_hab_km2))
+  )
 
-datos_densidad <- upz_bog %>%
-  st_drop_geometry() %>%
-  filter(!is.na(densidad_promedio), densidad_promedio > 0)
+# Verificar valores de distancia 
+summary(mzn_w_upz$dist_ci_km)
 
-# -----------------------------------------------------------------
-# 3. Estimación de Gradientes
-# -----------------------------------------------------------------
+df_den <- st_drop_geometry(mzn_w_upz) %>%
+  filter(is.finite(dist_ci_km), is.finite(ln_dens))
 
-# Forma funcional: log-log (elasticidad constante)
+# Modelo lineal
+m_den_lin <- gam(
+  ln_dens ~ dist_ci_km + s(cod_upz, bs = "re") + s(area_km2, k=4),
+  data = df_den, method = "REML"
+)
 
-# Gradiente de precio de venta
+# Modelo no lineal
+m_den_gam <- gam(ln_dens ~ s(dist_ci_km, k=5) + s(area_km2, k=4) + s(cod_upz, bs="re"),
+                 data = df_den, method = "REML")
 
-modelo_venta <- lm(log(price_m2) ~ log(dist_centro_km), 
-                   data = propiedades_venta %>% 
-                     filter(price_m2 > 0, dist_centro_km > 0))
+summary(m_den_lin)
+summary(m_den_gam)
+gam.check(m_den_gam)  # chequeo de k
 
-summary(modelo_venta)
+# OLS con FE por UPZ
+m_den_fe <- feols(
+  ln_dens ~ dist_ci_km + area_km2 | cod_upz,
+  data = df_den,
+  cluster = ~ cod_upz
+)
 
-# Gradiente de precio de arriendo
-
-modelo_arriendo <- lm(log(price_m2) ~ log(dist_centro_km), 
-                      data = propiedades_arriendo %>% 
-                        filter(price_m2 > 0, dist_centro_km > 0))
-
-summary(modelo_arriendo)
-
-# Gradiente de densidad poblacional
-
-modelo_densidad <- lm(log(densidad_promedio) ~ log(dist_centro_km), 
-                      data = datos_densidad %>%
-                        filter(dist_centro_km > 0))
-
-summary(modelo_densidad)
+etable(m_den_fe)
 
 
+# Curva predicha con IC 95%
+
+grad_den_lin   <- ggpredict(m_den_lin, terms = "dist_ci_km", ci.lvl = 0.95)  # predicciones + IC
+grad_den_gam   <- ggpredict(m_den_gam, terms = "dist_ci_km", ci.lvl = 0.95)
+grad_den_fe    <- ggpredict(m_den_fe, terms = "dist_ci_km", ci.lvl = 0.95)
+
+
+plot(grad_den_lin)    + labs(x="Distancia al CI (km)", y="Densidad poblacional predicha (hab/km²)", title="Densidad: gradiente con IC")
+plot(grad_den_gam) + labs(x="Distancia al CI (km)", y="Densidad poblacional predicha (hab/km²)", title="Densidad: gradiente con IC")
+plot(grad_den_fe) + labs(x="Distancia al CI (km)", y="Densidad poblacional predicha (hab/km²)", title="Densidad: gradiente con IC")
 
