@@ -30,7 +30,7 @@ CONLEY_KM   <- 5        # km para EE Conley
 
 propiedades <- propiedades %>% filter(!is.na(operation), !is.na(cod_upz)) %>% 
   mutate(cod_upz = factor(cod_upz),
-         y_log_m2 = log(price_m2))
+         y_log_m2 = log(price/surface_total))
 
 # --- Centroides de parques y plazas ---
 ea_cent <- st_centroid(espacios_abiertos)  # puntos para medir distancia
