@@ -46,7 +46,8 @@ p_load(rio,          # Importación/exportación datos
        mgcv,
        scales,
        ggeffects,
-       conleyreg
+       conleyreg, 
+       FNN
 )
 
 # Definir rutas 
