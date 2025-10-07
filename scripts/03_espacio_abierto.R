@@ -67,7 +67,7 @@ propiedades %>% st_drop_geometry() %>%
     p_near800  = mean(near800, na.rm = TRUE)
   )
 
-    ### La gran mayoría de las propiedades tienen un centroide de un espacio abierto 1 ha o más a 800 metros o menos. 
+### La gran mayoría de las propiedades tienen un centroide de un espacio abierto 1 ha o más a 800 metros o menos. 
 
 
 # --- Dependiente y controles ---
@@ -107,7 +107,7 @@ rent <- dplyr::left_join(rent, rent_coords, by = "id_prop")
 # 1) OLS con FE por UPZ (cluster UPZ)
 # ============================================================
 
-  ## Creamos lista con las diferentes medidas de cercanía. 
+## Creamos lista con las diferentes medidas de cercanía. 
 treats <- c("l_dist_abiert", "near300", "near800")
 
 # --- Venta ---
@@ -125,11 +125,8 @@ for (tv in treats) {
 }
 
 
-for (tv in treats) {
-  f_alq <- as.formula(paste0("y_log_m2 ~ ", tv, " + ", rhs_ctrl, " | ", FE_VAR))
-  obj <- paste0("m_rent_fe_", tv)   # p.ej. m_rent_fe_near300
-  assign(obj, feols(f_alq, data = rent, cluster = ~ cod_upz))
-}
+etable(list(m_rent_fe_l_dist_abiert, m_rent_fe_near300, m_rent_fe_near800),
+       headers = c("log dist", "≤300 m (≥1 ha)", "≤800 m"))
 
 # ============================================================
 # 2) DIFERENCIAS ESPACIALES (SFD)
@@ -169,17 +166,17 @@ if (nrow(pares_rent) == 0) message("SFD alquiler: no hay pares dentro del calipe
 # Estimar por cada tratamiento
 for (tv in treats) {
   # Venta
-    df <- sale %>% arrange(id_prop)
-    dy  <- df$y_log_m2[pares_sale$i] - df$y_log_m2[pares_sale$j]
-    dlns<- df$ln_st[pares_sale$i]    - df$ln_st[pares_sale$j]
-    dlnc<- df$ln_sc[pares_sale$i]    - df$ln_sc[pares_sale$j]
-    ddc <- df$dist_ci_km[pares_sale$i]-df$dist_ci_km[pares_sale$j]
-    dtv <- df[[tv]][pares_sale$i]    - df[[tv]][pares_sale$j]
-    datos <- data.frame(dy = dy, dtv = dtv, dlns = dlns, dlnc = dlnc, ddc = ddc)
-    cat("\n[VENTA][SFD] Tratamiento:", tv, " | N pares:", nrow(datos), "\n")
-    m_sfd_sale <- feols(dy ~ dtv + dlns + dlnc + ddc, data = datos)
-    print(etable(m_sfd_sale))
-
+  df <- sale %>% arrange(id_prop)
+  dy  <- df$y_log_m2[pares_sale$i] - df$y_log_m2[pares_sale$j]
+  dlns<- df$ln_st[pares_sale$i]    - df$ln_st[pares_sale$j]
+  dlnc<- df$ln_sc[pares_sale$i]    - df$ln_sc[pares_sale$j]
+  ddc <- df$dist_ci_km[pares_sale$i]-df$dist_ci_km[pares_sale$j]
+  dtv <- df[[tv]][pares_sale$i]    - df[[tv]][pares_sale$j]
+  datos <- data.frame(dy = dy, dtv = dtv, dlns = dlns, dlnc = dlnc, ddc = ddc)
+  cat("\n[VENTA][SFD] Tratamiento:", tv, " | N pares:", nrow(datos), "\n")
+  m_sfd_sale <- feols(dy ~ dtv + dlns + dlnc + ddc, data = datos)
+  print(etable(m_sfd_sale))
+  
   # Alquiler
   if (nrow(pares_rent) > 0) {
     df <- rent %>% arrange(id_prop)
@@ -198,18 +195,22 @@ for (tv in treats) {
 
 
 # 3) var-cov Conley (kernel Bartlett, 5 km)
-vc_sale <- fixest::vcov_conley(m_sale_fe, lon = "lon", lat = "lat", cutoff = 5)
-vc_rent <- fixest::vcov_conley(m_rent_fe, lon = "lon", lat = "lat", cutoff = 5)
+model_names <- c("m_rent_fe_l_dist_abiert","m_rent_fe_near300","m_rent_fe_near800",
+                 "m_sale_fe_l_dist_abiert","m_sale_fe_near300","m_sale_fe_near800")
 
-# 4) tablas con EE Conley
-etable(m_sale_fe, m_rent_fe, vcov = list(vc_sale, vc_rent))
+mods <- mget(model_names, inherits = TRUE)
+datas <- list(rent, rent, rent,
+              sale, sale, sale)
+
+vcs <- Map(function(mod, df)
+  vcov_conley(mod, lon = "lon" , lat = "lat", cutoff = 5),
+  mods, datas)
+
+etable(mods, vcov = vcs)
 
 
 
 
 
-
-# Guardar resumen rápido
-readr::write_csv(variacion_cent, here::here("data","processed","variacion_centroides.csv"))
 
 
