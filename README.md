@@ -1,5 +1,12 @@
 # T1_EU_SM_ST_CH_EJ2
-Taller 1 - Economía Urbana - Maestría PEG Uniandes
+
+## Taller 1 - Economía Urbana - Ejercicio 1  
+
+###### 
+
+### Santiago Melo, Corina Hernández, Sara Torres  
+
+---
 
 Este repositorio contiene las **bases de datos** y **scripts** del Taller 1, ejercicio 2. A continuación se exponen las instrucciones para **reproducir los resultados**.
 
