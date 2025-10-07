@@ -52,8 +52,8 @@ sum(props$surface_total != props$surface_covered, na.rm= TRUE)
   # Como vemos que no hay prácticamente diferencias a lo largo del data frame entre las variables "rooms" y "bedrooms" elegimos una sola para las regresiones para evitar colinealidad. 
 
 # Data frames separados
-sale  <- props %>% filter(operation == "Venta")
-rent  <- props %>% filter(operation == "Alquiler")
+sale  <- props %>% filter(operation == "Venta") %>% rename(price_m2 = price_m2_venta)
+rent  <- props %>% filter(operation == "Alquiler") %>% rename(price_m2 = rent_m2_mo)
 
 
 # -----------------------------------------------------------------
