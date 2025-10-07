@@ -58,8 +58,7 @@ De lo contrario:
 
 ## 4) Orden de ejecución
 
-> **Ejecutar cada script en este orden**. Los ejemplos usan `Rscript`, pero se pueden abrir en RStudio y correr por secciones. Las **salidas** (tablas/figuras) se guardan en `results/`.
-
+> **Ejecutar cada script en este orden**. Los ejemplos usan `Rscript`, pero se pueden abrir en RStudio y correr por secciones. 
 ### 4.1 `scripts/00_config.R` — Configuración base
 - **Qué hace:** fija el directorio raíz con `here`, carga y verifica paquetes, configura opciones globales (CRS, semilla, etc.).
 - **Cómo correr:**
