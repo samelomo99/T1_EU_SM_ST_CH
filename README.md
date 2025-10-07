@@ -57,9 +57,9 @@ De lo contrario:
 1. Descargar desde la fuente oficial (**DANE**).
 2. Debe ubicarse en:
    ```
-   data/Bogota/11Bogota/11_Bogota_CSV/CNPV2018_5PER_A2_11.CSV
+   data/Bogota/11Bogota/11_Bogota_CSV
    ```
-3. Si el nombre o la ubicación cambian, ajustar la variable `path_censo_personas` en `scripts/01_data_cleaning.R`.
+3. Si el nombre o la ubicación cambian, ajustar la variable `path_censo` en `scripts/01_data_cleaning.R`.
 
 ---
 
