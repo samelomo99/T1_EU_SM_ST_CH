@@ -27,7 +27,7 @@ Este repositorio contiene las **bases de datos** y **scripts** del Taller 1. A c
 │  ├─ 02_gradients.R
 │  └─ 03_espacio_abierto.R
 └─ README.md         (este archivo)
-
+```
 ---
 
 ## 2) Requisitos
