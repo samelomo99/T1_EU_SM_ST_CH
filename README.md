@@ -1,7 +1,7 @@
-# T1_EU_SM_ST_CH
+# T1_EU_SM_ST_CH_EJ2
 Taller 1 - Economía Urbana - Maestría PEG Uniandes
 
-Este repositorio contiene las **bases de datos** y **scripts** del Taller 1. A continuación se exponen las instrucciones para **reproducir los resultados**.
+Este repositorio contiene las **bases de datos** y **scripts** del Taller 1, ejercicio 2. A continuación se exponen las instrucciones para **reproducir los resultados**.
 
 > **Importante:** por restricciones de tamaño, **no** se incluye la base de **personas del Censo 2018** (`CNPV2018_5PER_A2_11.CSV`). Abajo se indica cómo obtenerla y dónde ubicarla.
 
