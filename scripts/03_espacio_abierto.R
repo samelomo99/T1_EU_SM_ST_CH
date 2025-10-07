@@ -209,8 +209,31 @@ vcs <- Map(function(mod, df)
 etable(mods, vcov = vcs)
 
 
+# Revisamos si la insignificancia de las amenidades es robusta a diferentes especificaciones de la distancia al CBD (utilizando el indicador de 300 metros a un área de mínimo una hectárea)
+
+base <- feols(y_log_m2 ~ near300 + bs(dist_ci_km, df=4) + ln_st + ln_sc + bathrooms + rooms | cod_upz,
+              data = sale, cluster = ~cod_upz)
+
+sin_dist <- feols(y_log_m2 ~ near300 + ln_st + ln_sc + bathrooms + rooms | cod_upz,
+                  data = sale, cluster = ~cod_upz)
+
+anillos <- feols(y_log_m2 ~ near300 + i(cut(dist_ci_km, c(0,5,10,15,25)), ref = "(0,5]") +
+                   ln_st + ln_sc + bathrooms + rooms | cod_upz,
+                 data = sale, cluster = ~cod_upz)
+
+etable(base, sin_dist, anillos, vcov = "cluster")
 
 
+base <- feols(y_log_m2 ~ near300 + bs(dist_ci_km, df=4) + ln_st + ln_sc + bathrooms + rooms | cod_upz,
+              data = rent, cluster = ~cod_upz)
 
+sin_dist <- feols(y_log_m2 ~ near300 + ln_st + ln_sc + bathrooms + rooms | cod_upz,
+                  data = rent, cluster = ~cod_upz)
+
+anillos <- feols(y_log_m2 ~ near300 + i(cut(dist_ci_km, c(0,5,10,15,25)), ref = "(0,5]") +
+                   ln_st + ln_sc + bathrooms + rooms | cod_upz,
+                 data = rent, cluster = ~cod_upz)
+
+etable(base, sin_dist, anillos, vcov = "cluster")
 
 
