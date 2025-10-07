@@ -1,6 +1,6 @@
 # T1_EU_SM_ST_CH_EJ2
 
-## Taller 1 - Economía Urbana - Ejercicio 1  
+## Taller 1 - Economía Urbana - Ejercicio 2  
 
 ###### 
 
