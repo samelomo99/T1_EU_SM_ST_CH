@@ -226,8 +226,8 @@ props <- props %>%
   id_prop = dplyr::row_number()) %>%
   filter(!is.na(operation)) %>%
   dplyr::select(
-    id_prop, operation, price_m2_venta, rent_m2_mo,
-    dist_ci_km, ln_st, ln_sc,
+    id_prop, operation, price, price_m2_venta, rent_m2_mo,
+    dist_ci_km, ln_st, ln_sc, surface_total, 
     bedrooms, bathrooms, rooms,
     cod_upz, geom
   )
